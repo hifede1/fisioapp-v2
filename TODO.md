@@ -78,44 +78,18 @@ if (pacienteId) {
 
 ### Páginas del fisioterapeuta
 
-#### `/fisio/pacientes/:id` — Historial del paciente
-**Archivo a crear:** `src/pages/fisio/HistorialPaciente.tsx`
-**Hook a crear:** `src/hooks/useHistorialPaciente.ts`
-**Ruta en App.tsx:66** — actualmente `<ComingSoon title="Historial del paciente" />`
-
-Debe mostrar:
-- Cabecera con datos del paciente (nombre, datos de contacto, foto)
-- Tratamiento activo + diagnóstico
-- Timeline de sesiones (con dolor_inicio/dolor_fin, notas, evolución)
-- Notas clínicas (solo las no privadas o todas si es el fisio dueño)
-- Próximas citas del paciente
-- Planes de ejercicios asignados
-- Botones de acción: nueva sesión, nueva nota, nueva cita
-
-Query necesaria: join `v_pacientes` + `tratamientos` + `sesiones` + `notas_clinicas` + `v_citas` + `planes_ejercicios` filtrados por `paciente_id`.
+#### ~~`/fisio/pacientes/:id` — Historial del paciente~~ ✅ COMPLETADO
+**Archivos:** `src/pages/fisio/HistorialPaciente.tsx`, `src/hooks/useHistorialPaciente.ts`
 
 ---
 
-#### `/fisio/citas` — Gestión de citas
-**Archivo a crear:** `src/pages/fisio/CitasFisio.tsx`
-**Hook a crear:** `src/hooks/useCitasFisio.ts`
-**Ruta en App.tsx:63** — actualmente `<ComingSoon title="Citas" />`
-
-Debe mostrar:
-- Vista semanal/mensual del calendario (o lista agrupada por día)
-- Filtros por estado (`pendiente`, `confirmada`, `completada`, `cancelada`, `no_asistio`)
-- Cambio de estado de cita inline
-- Botón "Nueva cita" → `/fisio/citas/nueva`
-
-Query: `v_citas` filtrada por `fisioterapeuta_id` (vía `get_fisioterapeuta_id()`), agrupada por fecha.
+#### ~~`/fisio/citas` — Gestión de citas~~ ✅ COMPLETADO
+**Archivos:** `src/pages/fisio/CitasFisio.tsx`, `src/hooks/useCitasFisio.ts`
 
 ---
 
-#### `/fisio/citas/nueva` — Nueva cita
-**Archivo a crear:** `src/pages/fisio/NuevaCitaFisio.tsx`
-**Ruta en App.tsx** — falta añadir
-
-Formulario: selector de paciente (de la lista del fisio), fecha/hora, duración (default 60 min), motivo, notas. Validar solapamiento con disponibilidad. Insert en tabla `citas`.
+#### ~~`/fisio/citas/nueva` — Nueva cita~~ ✅ COMPLETADO
+**Archivo:** `src/pages/fisio/NuevaCitaFisio.tsx`
 
 ---
 
@@ -128,11 +102,8 @@ Lista de sesiones del fisio con filtros por paciente/fecha. Muestra escala de do
 
 ---
 
-#### `/fisio/sesiones/nueva` — Nueva sesión
-**Archivo a crear:** `src/pages/fisio/NuevaSesionFisio.tsx`
-**Ruta en App.tsx** — falta añadir
-
-Formulario: paciente, fecha, duración, dolor inicio/fin (slider 0-10), notas de sesión, evolución, tratamiento asociado (opcional), cita asociada (opcional). Insert en tabla `sesiones`.
+#### ~~`/fisio/sesiones/nueva` — Nueva sesión~~ ✅ COMPLETADO
+**Archivos:** `src/pages/fisio/NuevaSesionFisio.tsx`, `src/hooks/useNuevaSesion.ts`
 
 ---
 
@@ -147,12 +118,8 @@ Lista de tratamientos agrupados por estado (`activo`, `completado`, `suspendido`
 
 ### Páginas del paciente
 
-#### `/paciente/rutinas` — Mis rutinas de ejercicios
-**Archivo a crear:** `src/pages/paciente/RutinasPaciente.tsx`
-**Hook a crear:** `src/hooks/useRutinasPaciente.ts`
-**Ruta en App.tsx:81** — actualmente `<ComingSoon title="Mis rutinas" />`
-
-Lista planes activos del paciente con sus ejercicios (join `planes_ejercicios` + `plan_ejercicios_detalle` + `ejercicios`). Cada ejercicio: nombre, series/repeticiones/duración, instrucciones, video/imagen si existen.
+#### ~~`/paciente/rutinas` — Mis rutinas de ejercicios~~ ✅ COMPLETADO
+**Archivos:** `src/pages/paciente/RutinasPaciente.tsx`, `src/hooks/useRutinasPaciente.ts`
 
 ---
 
@@ -288,7 +255,7 @@ Implementar con `supabase.channel()` + `.on('postgres_changes', ...)`. La tabla 
 | Prioridad | Items | Estado |
 |---|---|---|
 | 🔴 P0 Bugs | 5 | Pendientes |
-| 🟠 P1 Core | 6 páginas + 5 hooks | Pendientes |
+| 🟠 P1 Core | 6 páginas + 5 hooks | 5/6 completadas ✅ |
 | 🟡 P2 Importantes | 5 páginas + 2 mejoras + 3 RPCs | Pendientes |
 | 🟢 P3 Nice-to-have | Chat, notificaciones, pagos, disponibilidad | Pendientes |
 | 🔧 Deuda técnica | 8 items | Pendientes |

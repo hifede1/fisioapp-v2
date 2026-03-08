@@ -14,6 +14,7 @@ import { HistorialPaciente } from '@/pages/fisio/HistorialPaciente'
 import { NuevaSesionFisio } from '@/pages/fisio/NuevaSesionFisio'
 import { PacienteLayout } from '@/components/layout/PacienteLayout'
 import { DashboardPaciente } from '@/pages/paciente/DashboardPaciente'
+import { RutinasPaciente } from '@/pages/paciente/RutinasPaciente'
 
 function ComingSoon({ title }: { title: string }) {
   return (
@@ -88,7 +89,7 @@ export default function App() {
           }
         >
           <Route index element={<DashboardPaciente />} />
-          <Route path="rutinas" element={<ComingSoon title="Mis rutinas" />} />
+          <Route path="rutinas" element={<RutinasPaciente />} />
           <Route path="progreso" element={<ComingSoon title="Mi progreso" />} />
           <Route path="chat" element={<ComingSoon title="Chat con mi fisio" />} />
           <Route path="perfil" element={<ComingSoon title="Mi perfil" />} />

@@ -22,6 +22,7 @@ Use `cancelled` flag inside useEffect for cleanup.
 - `src/hooks/useCitasFisio.ts` — fetches v_citas for the fisio; client-side filtering by estado + fecha window; exposes cancelarCita / completarCita (UPDATE citas table); refetch via tick
 - `src/hooks/useHistorialPaciente.ts` — receives pacienteId; parallel Promise.all over v_pacientes, tratamientos, sesiones (limit 10), notas_clinicas (limit 10), v_citas (upcoming, limit 5), planes_ejercicios (activo=true); returns { data: HistorialPacienteData | null, loading, error, refetch }
 - `src/hooks/useNuevaSesion.ts` — loads pacientes activos del fisio (fisioterapeuta_paciente + v_pacientes); exposes crearSesion(input) that gets fisioId via RPC, extracts date part from datetime-local string, appends ejercicios_realizados to notas_sesion (no DB column for it), INSERTs into sesiones, returns { id, paciente_id }; states: loading, submitting, error
+- `src/hooks/useRutinasPaciente.ts` — resolves paciente_id from pacientes.profile_id; fetches planes_ejercicios(activo=true) with nested plan_ejercicios_detalle(*,ejercicios(*)); sorts detalles by orden client-side; exports EjercicioDetalle and PlanConEjercicios types; returns { planes, loading, error, refetch }
 
 ### Pages (FISIO)
 - `src/pages/fisio/DashboardFisio.tsx`
@@ -34,6 +35,7 @@ Use `cancelled` flag inside useEffect for cleanup.
 
 ### Pages (PACIENTE)
 - `src/pages/paciente/DashboardPaciente.tsx`
+- `src/pages/paciente/RutinasPaciente.tsx` — list of active plans; PlanCard with progress bar (fecha_inicio→fecha_fin), collapsible exercise list (auto-expanded if <=3 items), EjercicioRow with chips (series/reps/duracion/descanso), ModalInstrucciones (Escape key + overlay click to close, body scroll lock); EmptyState; SkeletonCard loaders; emerald color scheme
 
 ## DB views used
 - `v_citas` — includes fisioterapeuta_nombre/apellidos, paciente_nombre/apellidos/email/telefono
@@ -70,4 +72,5 @@ Use `cancelled` flag inside useEffect for cleanup.
   - others → ComingSoon
 - `/paciente` → PacienteLayout (ProtectedRoute role=paciente)
   - index → DashboardPaciente
+  - `rutinas` → RutinasPaciente
   - others → ComingSoon
