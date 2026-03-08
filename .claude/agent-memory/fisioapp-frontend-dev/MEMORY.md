@@ -23,6 +23,8 @@ Use `cancelled` flag inside useEffect for cleanup.
 - `src/hooks/useHistorialPaciente.ts` — receives pacienteId; parallel Promise.all over v_pacientes, tratamientos, sesiones (limit 10), notas_clinicas (limit 10), v_citas (upcoming, limit 5), planes_ejercicios (activo=true); returns { data: HistorialPacienteData | null, loading, error, refetch }
 - `src/hooks/useNuevaSesion.ts` — loads pacientes activos del fisio (fisioterapeuta_paciente + v_pacientes); exposes crearSesion(input) that gets fisioId via RPC, extracts date part from datetime-local string, appends ejercicios_realizados to notas_sesion (no DB column for it), INSERTs into sesiones, returns { id, paciente_id }; states: loading, submitting, error
 - `src/hooks/useRutinasPaciente.ts` — resolves paciente_id from pacientes.profile_id; fetches planes_ejercicios(activo=true) with nested plan_ejercicios_detalle(*,ejercicios(*)); sorts detalles by orden client-side; exports EjercicioDetalle and PlanConEjercicios types; returns { planes, loading, error, refetch }
+- `src/hooks/useEjerciciosFisio.ts` — fetches ejercicios where publico=true OR creado_por=fisioId (using .or() with PostgREST syntax); exposes crearEjercicio(data) and actualizarEjercicio(id, data); updates local state after mutations without full refetch; exports Ejercicio, EjercicioCrearInput, EjercicioActualizarInput types; returns { ejercicios, loading, error, crearEjercicio, actualizarEjercicio, refetch }
+- `src/hooks/useNuevaRutina.ts` — loads pacientes activos (fisioterapeuta_paciente + v_pacientes) + ejercicios disponibles in parallel; exposes crearPlan(planInput, detalles[]) that INSERTs planes_ejercicios then bulk INSERTs plan_ejercicios_detalle; exports PacienteOpcion, DetalleInput, PlanInput types; returns { pacientes, ejercicios, loading, submitting, error, crearPlan }
 
 ### Pages (FISIO)
 - `src/pages/fisio/DashboardFisio.tsx`
@@ -32,6 +34,8 @@ Use `cancelled` flag inside useEffect for cleanup.
 - `src/pages/fisio/NuevaCitaFisio.tsx` — loads activos patients via fisioterapeuta_paciente + v_pacientes; INSERT into citas
 - `src/pages/fisio/HistorialPaciente.tsx` — patient detail hub; sections: cabecera (avatar, email, tel, activo badge), tratamiento activo, sesiones recientes (DolorIndicator + notes toggle), proximas citas, planes activos, notas clinicas (badge tipo + privada indicator), tratamientos historicos; action buttons: nueva sesion/cita/nota with ?paciente= query param; max-w-3xl wrapper
 - `src/pages/fisio/NuevaSesionFisio.tsx` — sesion form; ?paciente= pre-selection (readonly display + "Cambiar paciente" link); datetime-local input; duracion number input (15-180 step 5); two EVA sliders (0-10) via Controller with color coding (green/amber/red); evolucion textarea (required min 10); notas_sesion + ejercicios_realizados optional textareas; on success → navigate to /fisio/pacientes/{paciente_id}
+- `src/pages/fisio/EjerciciosFisio.tsx` — grid of exercise cards (sm:2 lg:3 cols); search by name + filter by categoria (unique from list) + filter by dificultad; ModalEjercicio (create/edit, Escape/overlay close, body scroll lock, focus on open); EjercicioCard shows nombre, dificultad badge (basico=green/intermedio=amber/avanzado=red), categoria badge, musculos, truncated descripcion; Edit button only on own exercises (creado_por===fisioId); SkeletonCard for loading state; empty state with filter clear button
+- `src/pages/fisio/NuevaRutinaFisio.tsx` — two-section form; Section 1: nombre, descripcion, paciente selector (?paciente= pre-selection readonly + "Cambiar" link), fecha_inicio (default today), fecha_fin (optional), activo toggle switch; Section 2: exercise search (shows top 20 unfiltered, up to 30 filtered), results list with add button + already-added checkmark indicator, FilaDetalle component with series/reps/descanso/duracion inputs + notas textarea + decorative drag handle + remove button; empty state; manual validation (min 1 exercise); on success → navigate to /fisio/pacientes/{paciente_id}
 
 ### Pages (PACIENTE)
 - `src/pages/paciente/DashboardPaciente.tsx`
@@ -69,6 +73,8 @@ Use `cancelled` flag inside useEffect for cleanup.
   - `pacientes` → PacientesFisio
   - `pacientes/nuevo` → NuevoPacienteFisio
   - `pacientes/:id` → HistorialPaciente
+  - `ejercicios` → EjerciciosFisio
+  - `rutinas/nueva` → NuevaRutinaFisio
   - others → ComingSoon
 - `/paciente` → PacienteLayout (ProtectedRoute role=paciente)
   - index → DashboardPaciente
