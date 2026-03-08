@@ -11,6 +11,7 @@ import { NuevoPacienteFisio } from '@/pages/fisio/NuevoPacienteFisio'
 import { CitasFisio } from '@/pages/fisio/CitasFisio'
 import { NuevaCitaFisio } from '@/pages/fisio/NuevaCitaFisio'
 import { HistorialPaciente } from '@/pages/fisio/HistorialPaciente'
+import { NuevaSesionFisio } from '@/pages/fisio/NuevaSesionFisio'
 import { PacienteLayout } from '@/components/layout/PacienteLayout'
 import { DashboardPaciente } from '@/pages/paciente/DashboardPaciente'
 
@@ -70,7 +71,7 @@ export default function App() {
           <Route path="pacientes/:id" element={<HistorialPaciente />} />
           <Route path="tratamientos" element={<ComingSoon title="Tratamientos" />} />
           <Route path="sesiones" element={<ComingSoon title="Sesiones" />} />
-          <Route path="sesiones/nueva" element={<ComingSoon title="Nueva sesión" />} />
+          <Route path="sesiones/nueva" element={<NuevaSesionFisio />} />
           <Route path="ejercicios" element={<ComingSoon title="Ejercicios" />} />
           <Route path="notas" element={<ComingSoon title="Notas clínicas" />} />
           <Route path="notas/nueva" element={<ComingSoon title="Nueva nota clínica" />} />

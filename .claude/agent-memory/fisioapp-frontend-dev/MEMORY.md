@@ -21,6 +21,7 @@ Use `cancelled` flag inside useEffect for cleanup.
 - `src/hooks/usePacientesFisio.ts` — fetches patients with diagnostico + proxima cita enrichment
 - `src/hooks/useCitasFisio.ts` — fetches v_citas for the fisio; client-side filtering by estado + fecha window; exposes cancelarCita / completarCita (UPDATE citas table); refetch via tick
 - `src/hooks/useHistorialPaciente.ts` — receives pacienteId; parallel Promise.all over v_pacientes, tratamientos, sesiones (limit 10), notas_clinicas (limit 10), v_citas (upcoming, limit 5), planes_ejercicios (activo=true); returns { data: HistorialPacienteData | null, loading, error, refetch }
+- `src/hooks/useNuevaSesion.ts` — loads pacientes activos del fisio (fisioterapeuta_paciente + v_pacientes); exposes crearSesion(input) that gets fisioId via RPC, extracts date part from datetime-local string, appends ejercicios_realizados to notas_sesion (no DB column for it), INSERTs into sesiones, returns { id, paciente_id }; states: loading, submitting, error
 
 ### Pages (FISIO)
 - `src/pages/fisio/DashboardFisio.tsx`
@@ -29,6 +30,7 @@ Use `cancelled` flag inside useEffect for cleanup.
 - `src/pages/fisio/CitasFisio.tsx` — chips for estado + periodo filters, confirm dialog (no library), skeleton loaders
 - `src/pages/fisio/NuevaCitaFisio.tsx` — loads activos patients via fisioterapeuta_paciente + v_pacientes; INSERT into citas
 - `src/pages/fisio/HistorialPaciente.tsx` — patient detail hub; sections: cabecera (avatar, email, tel, activo badge), tratamiento activo, sesiones recientes (DolorIndicator + notes toggle), proximas citas, planes activos, notas clinicas (badge tipo + privada indicator), tratamientos historicos; action buttons: nueva sesion/cita/nota with ?paciente= query param; max-w-3xl wrapper
+- `src/pages/fisio/NuevaSesionFisio.tsx` — sesion form; ?paciente= pre-selection (readonly display + "Cambiar paciente" link); datetime-local input; duracion number input (15-180 step 5); two EVA sliders (0-10) via Controller with color coding (green/amber/red); evolucion textarea (required min 10); notas_sesion + ejercicios_realizados optional textareas; on success → navigate to /fisio/pacientes/{paciente_id}
 
 ### Pages (PACIENTE)
 - `src/pages/paciente/DashboardPaciente.tsx`
@@ -61,6 +63,7 @@ Use `cancelled` flag inside useEffect for cleanup.
   - index → DashboardFisio
   - `citas` → CitasFisio
   - `citas/nueva` → NuevaCitaFisio
+  - `sesiones/nueva` → NuevaSesionFisio
   - `pacientes` → PacientesFisio
   - `pacientes/nuevo` → NuevoPacienteFisio
   - `pacientes/:id` → HistorialPaciente
