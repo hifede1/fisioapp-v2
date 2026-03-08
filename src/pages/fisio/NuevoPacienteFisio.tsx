@@ -1,9 +1,11 @@
+// 🏥 Role: FISIO only
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@/lib/zodResolver'
 import { supabase } from '@/lib/supabase'
+import type { TablesInsert } from '@/lib/supabase'
 
 // ─── Schema ──────────────────────────────────────────────────────────────────
 
@@ -156,35 +158,88 @@ export function NuevoPacienteFisio() {
 
   const onSubmit = async (data: FormValues) => {
     setServerError(null)
-    try {
-      const { data: result, error } = await (supabase as any).rpc('crear_paciente_nuevo', {
-        p_nombre:            data.nombre.trim(),
-        p_apellidos:         data.apellidos.trim(),
-        p_email:             data.email.trim(),
-        p_telefono:          data.telefono?.trim() || null,
-        p_fecha_nacimiento:  data.fecha_nacimiento || null,
-        p_historial_medico:  data.historial_medico?.trim() || null,
-      })
 
-      if (error) throw error
+    // ── Paso 0: obtener el fisioterapeuta_id del usuario actual ───────────────
+    const sb = supabase as any // supabase-js v2.98 workaround para RPCs simples
+    const { data: fisioIdRaw, error: fisioIdError } = await sb.rpc('get_fisioterapeuta_id')
+    if (fisioIdError || !fisioIdRaw) {
+      setServerError('No se pudo identificar tu cuenta de fisioterapeuta. Recarga la página e inténtalo de nuevo.')
+      return
+    }
+    const fisioId = fisioIdRaw as string
 
-      // supabase-js v2.98 no infiere el tipo de retorno de RPCs con JSON
-      const r = result as { nombre: string; apellidos: string; email: string; paciente_id: string }
-      setPacienteCreado({
-        nombre:      r.nombre,
-        apellidos:   r.apellidos,
-        email:       r.email,
-        paciente_id: r.paciente_id,
-      })
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Error al registrar el paciente'
-      // Mensaje más amigable para email duplicado
-      if (msg.includes('Ya existe un usuario')) {
+    // ── Paso 1: INSERT profiles ───────────────────────────────────────────────
+    const profileId = crypto.randomUUID()
+    const profileInsert: TablesInsert<'profiles'> = {
+      id:        profileId,
+      role:      'paciente',
+      nombre:    data.nombre.trim(),
+      apellidos: data.apellidos.trim(),
+      email:     data.email.trim().toLowerCase(),
+      telefono:  data.telefono?.trim() || null,
+    }
+
+    const { error: profileError } = await supabase
+      .from('profiles')
+      .insert(profileInsert)
+
+    if (profileError) {
+      const msg = profileError.message ?? ''
+      if (msg.includes('duplicate') || msg.includes('unique') || msg.includes('profiles_email')) {
         setServerError('Ya existe un paciente registrado con ese email. Usa la opción de vincular desde la lista de pacientes si quieres añadirlo a tu consulta.')
       } else {
-        setServerError(msg)
+        setServerError(`Error al crear el perfil: ${msg}`)
       }
+      return
     }
+
+    // ── Paso 2: INSERT pacientes ──────────────────────────────────────────────
+    const pacienteInsert: TablesInsert<'pacientes'> = {
+      profile_id:       profileId,
+      fecha_nacimiento: data.fecha_nacimiento || null,
+      historial_medico: data.historial_medico?.trim() || null,
+    }
+
+    const { data: pacienteRow, error: pacienteError } = await supabase
+      .from('pacientes')
+      .insert(pacienteInsert)
+      .select('id')
+      .single()
+
+    if (pacienteError || !pacienteRow) {
+      // Rollback: eliminar el profile recién creado
+      await supabase.from('profiles').delete().eq('id', profileId)
+      setServerError(`Error al registrar los datos del paciente: ${pacienteError?.message ?? 'respuesta inesperada'}`)
+      return
+    }
+
+    const pacienteId = pacienteRow.id
+
+    // ── Paso 3: INSERT fisioterapeuta_paciente ────────────────────────────────
+    const vinculoInsert: TablesInsert<'fisioterapeuta_paciente'> = {
+      fisioterapeuta_id: fisioId,
+      paciente_id:       pacienteId,
+    }
+
+    const { error: vinculoError } = await supabase
+      .from('fisioterapeuta_paciente')
+      .insert(vinculoInsert)
+
+    if (vinculoError) {
+      // Rollback: eliminar paciente y profile
+      await supabase.from('pacientes').delete().eq('id', pacienteId)
+      await supabase.from('profiles').delete().eq('id', profileId)
+      setServerError(`Error al vincular el paciente a tu consulta: ${vinculoError.message}`)
+      return
+    }
+
+    // ── Éxito ─────────────────────────────────────────────────────────────────
+    setPacienteCreado({
+      nombre:      data.nombre.trim(),
+      apellidos:   data.apellidos.trim(),
+      email:       data.email.trim().toLowerCase(),
+      paciente_id: pacienteId,
+    })
   }
 
   const handleAddAnother = () => {
