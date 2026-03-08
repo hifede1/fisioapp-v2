@@ -20,6 +20,7 @@ Use `cancelled` flag inside useEffect for cleanup.
 ### Hooks
 - `src/hooks/usePacientesFisio.ts` — fetches patients with diagnostico + proxima cita enrichment
 - `src/hooks/useCitasFisio.ts` — fetches v_citas for the fisio; client-side filtering by estado + fecha window; exposes cancelarCita / completarCita (UPDATE citas table); refetch via tick
+- `src/hooks/useHistorialPaciente.ts` — receives pacienteId; parallel Promise.all over v_pacientes, tratamientos, sesiones (limit 10), notas_clinicas (limit 10), v_citas (upcoming, limit 5), planes_ejercicios (activo=true); returns { data: HistorialPacienteData | null, loading, error, refetch }
 
 ### Pages (FISIO)
 - `src/pages/fisio/DashboardFisio.tsx`
@@ -27,6 +28,7 @@ Use `cancelled` flag inside useEffect for cleanup.
 - `src/pages/fisio/NuevoPacienteFisio.tsx` — calls RPC `crear_paciente_nuevo`
 - `src/pages/fisio/CitasFisio.tsx` — chips for estado + periodo filters, confirm dialog (no library), skeleton loaders
 - `src/pages/fisio/NuevaCitaFisio.tsx` — loads activos patients via fisioterapeuta_paciente + v_pacientes; INSERT into citas
+- `src/pages/fisio/HistorialPaciente.tsx` — patient detail hub; sections: cabecera (avatar, email, tel, activo badge), tratamiento activo, sesiones recientes (DolorIndicator + notes toggle), proximas citas, planes activos, notas clinicas (badge tipo + privada indicator), tratamientos historicos; action buttons: nueva sesion/cita/nota with ?paciente= query param; max-w-3xl wrapper
 
 ### Pages (PACIENTE)
 - `src/pages/paciente/DashboardPaciente.tsx`
@@ -61,7 +63,7 @@ Use `cancelled` flag inside useEffect for cleanup.
   - `citas/nueva` → NuevaCitaFisio
   - `pacientes` → PacientesFisio
   - `pacientes/nuevo` → NuevoPacienteFisio
-  - `pacientes/:id` → ComingSoon
+  - `pacientes/:id` → HistorialPaciente
   - others → ComingSoon
 - `/paciente` → PacienteLayout (ProtectedRoute role=paciente)
   - index → DashboardPaciente
