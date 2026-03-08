@@ -179,7 +179,7 @@ export function NuevoPacienteFisio() {
       telefono:  data.telefono?.trim() || null,
     }
 
-    const { error: profileError } = await supabase
+    const { error: profileError } = await (supabase as any)
       .from('profiles')
       .insert(profileInsert)
 
@@ -200,7 +200,7 @@ export function NuevoPacienteFisio() {
       historial_medico: data.historial_medico?.trim() || null,
     }
 
-    const { data: pacienteRow, error: pacienteError } = await supabase
+    const { data: pacienteRow, error: pacienteError } = await (supabase as any)
       .from('pacientes')
       .insert(pacienteInsert)
       .select('id')
@@ -208,7 +208,7 @@ export function NuevoPacienteFisio() {
 
     if (pacienteError || !pacienteRow) {
       // Rollback: eliminar el profile recién creado
-      await supabase.from('profiles').delete().eq('id', profileId)
+      await (supabase as any).from('profiles').delete().eq('id', profileId)
       setServerError(`Error al registrar los datos del paciente: ${pacienteError?.message ?? 'respuesta inesperada'}`)
       return
     }
@@ -221,14 +221,14 @@ export function NuevoPacienteFisio() {
       paciente_id:       pacienteId,
     }
 
-    const { error: vinculoError } = await supabase
+    const { error: vinculoError } = await (supabase as any)
       .from('fisioterapeuta_paciente')
       .insert(vinculoInsert)
 
     if (vinculoError) {
       // Rollback: eliminar paciente y profile
-      await supabase.from('pacientes').delete().eq('id', pacienteId)
-      await supabase.from('profiles').delete().eq('id', profileId)
+      await (supabase as any).from('pacientes').delete().eq('id', pacienteId)
+      await (supabase as any).from('profiles').delete().eq('id', profileId)
       setServerError(`Error al vincular el paciente a tu consulta: ${vinculoError.message}`)
       return
     }
