@@ -7,33 +7,18 @@ import { z } from 'zod'
 import { zodResolver } from '@/lib/zodResolver'
 import { supabase } from '@/lib/supabase'
 
-// ─── Helpers de hora ─────────────────────────────────────────────────────────
-
-/**
- * Genera todas las opciones de hora entre las 8:00 y las 20:00 (inclusive)
- * en intervalos de 15 minutos: "08:00", "08:15", ..., "20:00"
- */
-function generarOpcionesHora(): string[] {
-  const opciones: string[] = []
-  for (let h = 8; h <= 20; h++) {
-    const minutos = h === 20 ? [0] : [0, 15, 30, 45]
-    for (const m of minutos) {
-      opciones.push(
-        `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
-      )
-    }
-  }
-  return opciones
-}
-
-const OPCIONES_HORA = generarOpcionesHora()
-
 // ─── Schema ───────────────────────────────────────────────────────────────────
+
+const MINUTOS_VALIDOS = [0, 15, 30, 45] as const
 
 const schema = z.object({
   paciente_id:      z.string().min(1, 'Selecciona un paciente'),
   fecha:            z.string().min(1, 'La fecha es requerida'),
-  hora:             z.string().min(1, 'La hora es requerida'),
+  hora:             z.coerce.number().int().min(8, 'La hora mínima es las 08:00').max(20, 'La hora máxima es las 20:00'),
+  minutos:          z.coerce.number().int().refine(
+    (v) => (MINUTOS_VALIDOS as readonly number[]).includes(v),
+    { message: 'Los minutos deben ser 00, 15, 30 o 45' }
+  ),
   duracion_minutos: z.coerce.number().int().min(15).max(240),
   tratamiento_id:   z.string().nullable().optional(),
   notas:            z.string().max(1000).optional().or(z.literal('')),
@@ -109,19 +94,23 @@ function formatearFechaLegible(fechaISO: string): string {
   return `${dd}/${mm}/${yyyy}`
 }
 
+// ─── Opciones estáticas ───────────────────────────────────────────────────────
+
+const OPCIONES_HORAS: number[] = Array.from({ length: 13 }, (_, i) => i + 8) // 8..20
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export function NuevaCitaFisio() {
   const navigate = useNavigate()
 
-  const [pacientes, setPacientes]                   = useState<PacienteOption[]>([])
-  const [pacientesLoading, setPacientesLoading]     = useState(true)
-  const [pacientesError, setPacientesError]         = useState<string | null>(null)
+  const [pacientes, setPacientes]                     = useState<PacienteOption[]>([])
+  const [pacientesLoading, setPacientesLoading]       = useState(true)
+  const [pacientesError, setPacientesError]           = useState<string | null>(null)
 
-  const [tratamientos, setTratamientos]             = useState<TratamientoOption[]>([])
+  const [tratamientos, setTratamientos]               = useState<TratamientoOption[]>([])
   const [tratamientosLoading, setTratamientosLoading] = useState(false)
 
-  const [serverError, setServerError]               = useState<string | null>(null)
+  const [serverError, setServerError]                 = useState<string | null>(null)
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const sb = supabase as any
@@ -136,6 +125,8 @@ export function NuevaCitaFisio() {
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
+      hora:             9,
+      minutos:          0,
       duracion_minutos: 60,
       tratamiento_id:   null,
     },
@@ -144,6 +135,7 @@ export function NuevaCitaFisio() {
   const pacienteIdWatched = watch('paciente_id')
   const fechaWatched      = watch('fecha')
   const horaWatched       = watch('hora')
+  const minutosWatched    = watch('minutos')
 
   // ── Cargar pacientes activos del fisio ──────────────────────────────────────
   useEffect(() => {
@@ -235,6 +227,12 @@ export function NuevaCitaFisio() {
     return () => { cancelled = true }
   }, [pacienteIdWatched])
 
+  // ── Componer la cadena "HH:MM" a partir de hora y minutos ────────────────────
+
+  function buildHoraString(h: number, m: number): string {
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
+  }
+
   // ── Submit ──────────────────────────────────────────────────────────────────
   const onSubmit = async (data: FormValues) => {
     setServerError(null)
@@ -245,9 +243,8 @@ export function NuevaCitaFisio() {
       const fisioId = fisioIdRaw as string
 
       // ── 1. Verificar solapamiento ────────────────────────────────────────────
-      // Buscamos si ya existe una cita del fisio en ese mismo fecha_hora exacta
-      // con estado distinto de 'cancelada'.
-      const fechaHoraSlot = `${data.fecha}T${data.hora}:00`
+      const horaStr     = buildHoraString(data.hora, data.minutos)
+      const fechaHoraSlot = `${data.fecha}T${horaStr}:00`
 
       const { data: existentes, error: overlapError } = await sb
         .from('citas')
@@ -260,10 +257,9 @@ export function NuevaCitaFisio() {
       if (overlapError) throw overlapError
 
       if (existentes && existentes.length > 0) {
-        // Error inline en el campo hora
         setError('hora', {
           type: 'manual',
-          message: `Ya tienes una cita programada a las ${data.hora} el ${formatearFechaLegible(data.fecha)}.`,
+          message: `Ya tienes una cita programada a las ${horaStr} el ${formatearFechaLegible(data.fecha)}.`,
         })
         return
       }
@@ -278,9 +274,6 @@ export function NuevaCitaFisio() {
           duracion_minutos:  data.duracion_minutos,
           notas:             data.notas?.trim() || null,
           estado:            'pendiente',
-          // tratamiento_id no es columna de la tabla citas en el schema actual;
-          // se incluye para compatibilidad futura — si la migración no existe
-          // el servidor devolverá error y se mostrará en serverError.
           ...(data.tratamiento_id ? { tratamiento_id: data.tratamiento_id } : {}),
         })
 
@@ -291,6 +284,12 @@ export function NuevaCitaFisio() {
       setServerError(err instanceof Error ? err.message : 'Error al crear la cita')
     }
   }
+
+  // ── Hora display para el banner de solapamiento ───────────────────────────
+  const horaDisplayBanner =
+    horaWatched != null && minutosWatched != null
+      ? buildHoraString(Number(horaWatched), Number(minutosWatched))
+      : null
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
@@ -416,26 +415,72 @@ export function NuevaCitaFisio() {
                 />
               </Field>
 
-              {/* Selector de hora restringido: 08:00–20:00 en intervalos de 15 min */}
-              <Field label="Hora" required error={errors.hora?.message}>
-                <select
-                  className={inputClass(!!errors.hora)}
-                  disabled={isSubmitting}
-                  defaultValue=""
-                  {...register('hora')}
-                  aria-describedby={errors.hora ? 'hora-error' : undefined}
-                >
-                  <option value="" disabled>Selecciona una hora...</option>
-                  {OPCIONES_HORA.map(h => (
-                    <option key={h} value={h}>{h}</option>
-                  ))}
-                </select>
-                {/* El error de solapamiento ya se renderiza dentro de Field */}
+              {/* Selectores de hora y minutos en la misma línea */}
+              <Field
+                label="Hora"
+                required
+                error={errors.hora?.message ?? errors.minutos?.message}
+              >
+                <div className="flex items-center gap-1">
+                  {/* Selector de horas */}
+                  <Controller
+                    name="hora"
+                    control={control}
+                    render={({ field }) => (
+                      <select
+                        className={inputClass(!!(errors.hora || errors.minutos))}
+                        disabled={isSubmitting}
+                        value={field.value}
+                        onChange={e => field.onChange(Number(e.target.value))}
+                        onBlur={field.onBlur}
+                        ref={field.ref}
+                        aria-label="Hora"
+                      >
+                        {OPCIONES_HORAS.map(h => (
+                          <option key={h} value={h}>
+                            {String(h).padStart(2, '0')}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  />
+
+                  {/* Separador */}
+                  <span
+                    className="px-1 text-lg font-semibold text-gray-500 select-none"
+                    aria-hidden="true"
+                  >
+                    :
+                  </span>
+
+                  {/* Selector de minutos */}
+                  <Controller
+                    name="minutos"
+                    control={control}
+                    render={({ field }) => (
+                      <select
+                        className={inputClass(!!(errors.hora || errors.minutos))}
+                        disabled={isSubmitting}
+                        value={field.value}
+                        onChange={e => field.onChange(Number(e.target.value))}
+                        onBlur={field.onBlur}
+                        ref={field.ref}
+                        aria-label="Minutos"
+                      >
+                        {MINUTOS_VALIDOS.map(m => (
+                          <option key={m} value={m}>
+                            {String(m).padStart(2, '0')}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  />
+                </div>
               </Field>
             </div>
 
-            {/* Aviso de solapamiento visual extra cuando tanto fecha como hora están seleccionadas */}
-            {errors.hora?.type === 'manual' && fechaWatched && horaWatched && (
+            {/* Banner de solapamiento — sólo cuando hay error manual en hora */}
+            {errors.hora?.type === 'manual' && fechaWatched && horaDisplayBanner && (
               <div className="flex items-start gap-2.5 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3">
                 <svg className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
