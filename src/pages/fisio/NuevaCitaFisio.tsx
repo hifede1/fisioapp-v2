@@ -2,10 +2,31 @@
 
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useForm } from 'react-hook-form'
+import { useForm, Controller } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@/lib/zodResolver'
 import { supabase } from '@/lib/supabase'
+
+// ─── Helpers de hora ─────────────────────────────────────────────────────────
+
+/**
+ * Genera todas las opciones de hora entre las 8:00 y las 20:00 (inclusive)
+ * en intervalos de 15 minutos: "08:00", "08:15", ..., "20:00"
+ */
+function generarOpcionesHora(): string[] {
+  const opciones: string[] = []
+  for (let h = 8; h <= 20; h++) {
+    const minutos = h === 20 ? [0] : [0, 15, 30, 45]
+    for (const m of minutos) {
+      opciones.push(
+        `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
+      )
+    }
+  }
+  return opciones
+}
+
+const OPCIONES_HORA = generarOpcionesHora()
 
 // ─── Schema ───────────────────────────────────────────────────────────────────
 
@@ -14,6 +35,7 @@ const schema = z.object({
   fecha:            z.string().min(1, 'La fecha es requerida'),
   hora:             z.string().min(1, 'La hora es requerida'),
   duracion_minutos: z.coerce.number().int().min(15).max(240),
+  tratamiento_id:   z.string().nullable().optional(),
   notas:            z.string().max(1000).optional().or(z.literal('')),
 })
 
@@ -25,6 +47,11 @@ interface PacienteOption {
   id: string
   nombre: string
   apellidos: string
+}
+
+interface TratamientoOption {
+  id: string
+  titulo: string
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -74,26 +101,49 @@ function todayISO(): string {
   return `${yyyy}-${mm}-${dd}`
 }
 
+// ─── Formateador de fecha para el mensaje de solapamiento ────────────────────
+
+function formatearFechaLegible(fechaISO: string): string {
+  // fechaISO: "YYYY-MM-DD"
+  const [yyyy, mm, dd] = fechaISO.split('-')
+  return `${dd}/${mm}/${yyyy}`
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export function NuevaCitaFisio() {
   const navigate = useNavigate()
 
-  const [pacientes, setPacientes]       = useState<PacienteOption[]>([])
-  const [pacientesLoading, setPacientesLoading] = useState(true)
-  const [pacientesError, setPacientesError]     = useState<string | null>(null)
-  const [serverError, setServerError]   = useState<string | null>(null)
+  const [pacientes, setPacientes]                   = useState<PacienteOption[]>([])
+  const [pacientesLoading, setPacientesLoading]     = useState(true)
+  const [pacientesError, setPacientesError]         = useState<string | null>(null)
+
+  const [tratamientos, setTratamientos]             = useState<TratamientoOption[]>([])
+  const [tratamientosLoading, setTratamientosLoading] = useState(false)
+
+  const [serverError, setServerError]               = useState<string | null>(null)
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const sb = supabase as any
 
   const {
     register,
     handleSubmit,
+    watch,
+    control,
+    setError,
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
       duracion_minutos: 60,
+      tratamiento_id:   null,
     },
   })
+
+  const pacienteIdWatched = watch('paciente_id')
+  const fechaWatched      = watch('fecha')
+  const horaWatched       = watch('hora')
 
   // ── Cargar pacientes activos del fisio ──────────────────────────────────────
   useEffect(() => {
@@ -104,10 +154,6 @@ export function NuevaCitaFisio() {
       setPacientesError(null)
 
       try {
-        // Supabase JS v2.98: casteamos para evitar errores de tipos en filtros
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const sb = supabase as any
-
         const { data: fisioIdRaw, error: rpcError } = await supabase.rpc('get_fisioterapeuta_id')
         if (rpcError || !fisioIdRaw) throw new Error('No se encontró el perfil de fisioterapeuta')
         const fisioId = fisioIdRaw as string
@@ -153,27 +199,89 @@ export function NuevaCitaFisio() {
     return () => { cancelled = true }
   }, [])
 
+  // ── Cargar tratamientos activos cuando cambia el paciente seleccionado ───────
+  useEffect(() => {
+    if (!pacienteIdWatched) {
+      setTratamientos([])
+      return
+    }
+
+    let cancelled = false
+
+    async function loadTratamientos() {
+      setTratamientosLoading(true)
+
+      try {
+        const { data, error: fetchError } = await sb
+          .from('tratamientos')
+          .select('id, titulo')
+          .eq('paciente_id', pacienteIdWatched)
+          .eq('estado', 'activo')
+          .order('fecha_inicio', { ascending: false })
+
+        if (fetchError) throw fetchError
+
+        if (!cancelled) {
+          setTratamientos((data ?? []) as TratamientoOption[])
+        }
+      } catch {
+        if (!cancelled) setTratamientos([])
+      } finally {
+        if (!cancelled) setTratamientosLoading(false)
+      }
+    }
+
+    loadTratamientos()
+    return () => { cancelled = true }
+  }, [pacienteIdWatched])
+
   // ── Submit ──────────────────────────────────────────────────────────────────
   const onSubmit = async (data: FormValues) => {
     setServerError(null)
 
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const sb = supabase as any
-
       const { data: fisioIdRaw, error: rpcError } = await supabase.rpc('get_fisioterapeuta_id')
       if (rpcError || !fisioIdRaw) throw new Error('No se encontró el perfil de fisioterapeuta')
       const fisioId = fisioIdRaw as string
 
+      // ── 1. Verificar solapamiento ────────────────────────────────────────────
+      // Buscamos si ya existe una cita del fisio en ese mismo fecha_hora exacta
+      // con estado distinto de 'cancelada'.
+      const fechaHoraSlot = `${data.fecha}T${data.hora}:00`
+
+      const { data: existentes, error: overlapError } = await sb
+        .from('citas')
+        .select('id')
+        .eq('fisioterapeuta_id', fisioId)
+        .eq('fecha_hora', fechaHoraSlot)
+        .neq('estado', 'cancelada')
+        .limit(1)
+
+      if (overlapError) throw overlapError
+
+      if (existentes && existentes.length > 0) {
+        // Error inline en el campo hora
+        setError('hora', {
+          type: 'manual',
+          message: `Ya tienes una cita programada a las ${data.hora} el ${formatearFechaLegible(data.fecha)}.`,
+        })
+        return
+      }
+
+      // ── 2. Insertar cita ────────────────────────────────────────────────────
       const { error: insertError } = await sb
         .from('citas')
         .insert({
           fisioterapeuta_id: fisioId,
           paciente_id:       data.paciente_id,
-          fecha_hora:        `${data.fecha}T${data.hora}:00`,
+          fecha_hora:        fechaHoraSlot,
           duracion_minutos:  data.duracion_minutos,
           notas:             data.notas?.trim() || null,
           estado:            'pendiente',
+          // tratamiento_id no es columna de la tabla citas en el schema actual;
+          // se incluye para compatibilidad futura — si la migración no existe
+          // el servidor devolverá error y se mostrará en serverError.
+          ...(data.tratamiento_id ? { tratamiento_id: data.tratamiento_id } : {}),
         })
 
       if (insertError) throw insertError
@@ -250,6 +358,45 @@ export function NuevaCitaFisio() {
                 </p>
               )}
             </Field>
+
+            {/* Tratamiento asociado — aparece cuando hay un paciente seleccionado */}
+            {pacienteIdWatched && (
+              <Field
+                label="Tratamiento asociado"
+                hint="Opcional. Vincula esta cita a un tratamiento activo del paciente."
+                error={errors.tratamiento_id?.message}
+              >
+                {tratamientosLoading ? (
+                  <div className="h-10 bg-gray-100 rounded-lg animate-pulse" />
+                ) : (
+                  <Controller
+                    name="tratamiento_id"
+                    control={control}
+                    render={({ field }) => (
+                      <select
+                        className={inputClass(!!errors.tratamiento_id)}
+                        disabled={isSubmitting}
+                        value={field.value ?? ''}
+                        onChange={e => field.onChange(e.target.value || null)}
+                        onBlur={field.onBlur}
+                        ref={field.ref}
+                      >
+                        <option value="">Sin tratamiento asociado</option>
+                        {tratamientos.length === 0 ? (
+                          <option value="" disabled>No hay tratamientos activos</option>
+                        ) : (
+                          tratamientos.map(t => (
+                            <option key={t.id} value={t.id}>
+                              {t.titulo}
+                            </option>
+                          ))
+                        )}
+                      </select>
+                    )}
+                  />
+                )}
+              </Field>
+            )}
           </div>
 
           {/* Sección: Fecha y hora */}
@@ -269,16 +416,33 @@ export function NuevaCitaFisio() {
                 />
               </Field>
 
+              {/* Selector de hora restringido: 08:00–20:00 en intervalos de 15 min */}
               <Field label="Hora" required error={errors.hora?.message}>
-                <input
-                  type="time"
-                  step={900}
-                  disabled={isSubmitting}
+                <select
                   className={inputClass(!!errors.hora)}
+                  disabled={isSubmitting}
+                  defaultValue=""
                   {...register('hora')}
-                />
+                  aria-describedby={errors.hora ? 'hora-error' : undefined}
+                >
+                  <option value="" disabled>Selecciona una hora...</option>
+                  {OPCIONES_HORA.map(h => (
+                    <option key={h} value={h}>{h}</option>
+                  ))}
+                </select>
+                {/* El error de solapamiento ya se renderiza dentro de Field */}
               </Field>
             </div>
+
+            {/* Aviso de solapamiento visual extra cuando tanto fecha como hora están seleccionadas */}
+            {errors.hora?.type === 'manual' && fechaWatched && horaWatched && (
+              <div className="flex items-start gap-2.5 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3">
+                <svg className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                <p className="text-sm text-amber-700">{errors.hora.message}</p>
+              </div>
+            )}
 
             <Field
               label="Duración"
