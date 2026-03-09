@@ -70,7 +70,7 @@ function StatCard({ label, value, icon, iconBg, loading }: StatCardProps) {
 }
 
 function CitaCard({ cita }: { cita: Views<'v_citas'> }) {
-  const cfg = estadoConfig[cita.estado]
+  const cfg = estadoConfig[cita.estado as EstadoCita] ?? estadoConfig.pendiente
   return (
     <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
       <div className="shrink-0 mt-0.5">
@@ -84,7 +84,7 @@ function CitaCard({ cita }: { cita: Views<'v_citas'> }) {
           {cita.fisioterapeuta_nombre} {cita.fisioterapeuta_apellidos}
         </p>
         <p className="text-xs text-gray-500 capitalize">
-          {formatDateMed(cita.fecha_hora)} · {formatTime(cita.fecha_hora)}
+          {formatDateMed(cita.fecha_hora ?? '')} · {formatTime(cita.fecha_hora ?? '')}
         </p>
       </div>
       <span className={`shrink-0 text-xs font-medium px-2 py-0.5 rounded-full ${cfg.classes}`}>

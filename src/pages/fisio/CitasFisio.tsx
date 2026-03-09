@@ -168,7 +168,7 @@ function CitaBadge({ estado }: { estado: EstadoCita }) {
 }
 
 function CitaCard({ cita, onCompletar, onCancelar }: CitaCardProps) {
-  const { linea1, linea2 } = formatFechaHora(cita.fecha_hora)
+  const { linea1, linea2 } = formatFechaHora(cita.fecha_hora ?? '')
   const puedeAccionar = cita.estado === 'pendiente' || cita.estado === 'confirmada'
 
   return (
@@ -179,15 +179,15 @@ function CitaCard({ cita, onCompletar, onCancelar }: CitaCardProps) {
           <p className="text-sm font-semibold text-gray-900">{linea1} · {linea2}</p>
           <p className="text-xs text-gray-400 mt-0.5">{cita.duracion_minutos} min</p>
         </div>
-        <CitaBadge estado={cita.estado} />
+        <CitaBadge estado={(cita.estado ?? 'pendiente') as EstadoCita} />
       </div>
 
       {/* Paciente */}
       <div className="flex items-center gap-2.5">
         {/* Avatar inicial */}
         <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-xs font-semibold shrink-0">
-          {(cita.paciente_nombre[0] ?? '').toUpperCase()}
-          {(cita.paciente_apellidos[0] ?? '').toUpperCase()}
+          {((cita.paciente_nombre ?? '')[0] ?? '').toUpperCase()}
+          {((cita.paciente_apellidos ?? '')[0] ?? '').toUpperCase()}
         </div>
         <span className="text-sm text-gray-800 font-medium truncate">
           {cita.paciente_apellidos}, {cita.paciente_nombre}
@@ -239,7 +239,7 @@ interface CitaRowProps {
 }
 
 function CitaRow({ cita, onCompletar, onCancelar }: CitaRowProps) {
-  const { linea1, linea2 } = formatFechaHora(cita.fecha_hora)
+  const { linea1, linea2 } = formatFechaHora(cita.fecha_hora ?? '')
   const puedeAccionar = cita.estado === 'pendiente' || cita.estado === 'confirmada'
 
   return (
@@ -254,8 +254,8 @@ function CitaRow({ cita, onCompletar, onCancelar }: CitaRowProps) {
       <td className="px-4 py-3">
         <div className="flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-xs font-semibold shrink-0">
-            {(cita.paciente_nombre[0] ?? '').toUpperCase()}
-            {(cita.paciente_apellidos[0] ?? '').toUpperCase()}
+            {((cita.paciente_nombre ?? '')[0] ?? '').toUpperCase()}
+            {((cita.paciente_apellidos ?? '')[0] ?? '').toUpperCase()}
           </div>
           <span className="text-sm font-medium text-gray-900">
             {cita.paciente_apellidos}, {cita.paciente_nombre}
@@ -274,7 +274,7 @@ function CitaRow({ cita, onCompletar, onCancelar }: CitaRowProps) {
 
       {/* Estado */}
       <td className="px-4 py-3 whitespace-nowrap">
-        <CitaBadge estado={cita.estado} />
+        <CitaBadge estado={(cita.estado ?? 'pendiente') as EstadoCita} />
       </td>
 
       {/* Acciones */}
@@ -390,9 +390,9 @@ export function CitasFisio() {
     setActionError(null)
     try {
       if (pendingAction.tipo === 'completar') {
-        await completarCita(pendingAction.cita.id)
+        await completarCita(pendingAction.cita.id!)
       } else {
-        await cancelarCita(pendingAction.cita.id)
+        await cancelarCita(pendingAction.cita.id!)
       }
       setPendingAction(null)
     } catch (err) {

@@ -377,14 +377,14 @@ function CitaRow({ cita }: { cita: CitaResumen }) {
   return (
     <div className="flex items-center justify-between gap-3 py-3 border-b border-gray-100 last:border-0">
       <div>
-        <p className="text-sm font-medium text-gray-900">{formatFechaHora(cita.fecha_hora)}</p>
+        <p className="text-sm font-medium text-gray-900">{formatFechaHora(cita.fecha_hora ?? '')}</p>
         <p className="text-xs text-gray-400 mt-0.5">{cita.duracion_minutos} min</p>
       </div>
       <div className="flex items-center gap-2 shrink-0">
         {cita.motivo && (
           <span className="text-xs text-gray-500 hidden sm:inline truncate max-w-[140px]">{cita.motivo}</span>
         )}
-        <BadgeCita estado={cita.estado} />
+        <BadgeCita estado={(cita.estado ?? 'pendiente') as EstadoCita} />
       </div>
     </div>
   )
@@ -458,8 +458,8 @@ export function HistorialPaciente() {
       <div className="bg-white rounded-xl border border-gray-200 p-5">
         <div className="flex items-start gap-4 flex-wrap">
           <Avatar
-            nombre={paciente.nombre}
-            apellidos={paciente.apellidos}
+            nombre={paciente.nombre ?? ''}
+            apellidos={paciente.apellidos ?? ''}
             fotoUrl={paciente.foto_url}
             size="lg"
           />

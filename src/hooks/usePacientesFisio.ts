@@ -114,24 +114,25 @@ export function usePacientesFisio(): UsePacientesFisioResult {
           }
         }
 
-        const result: PacienteConInfo[] = ((pacientesRes.data ?? []) as Views<'v_pacientes'>[]).map(
-          (p: Views<'v_pacientes'>) => {
-            const proxima = proximaCitaMap.get(p.id)
+        const result: PacienteConInfo[] = ((pacientesRes.data ?? []) as Views<'v_pacientes'>[])
+          .filter((p: Views<'v_pacientes'>) => p.id != null)
+          .map((p: Views<'v_pacientes'>) => {
+            const pid = p.id as string
+            const proxima = proximaCitaMap.get(pid)
             return {
-              id:                   p.id,
-              profile_id:           p.profile_id,
-              nombre:               p.nombre,
-              apellidos:            p.apellidos,
-              email:                p.email,
+              id:                   pid,
+              profile_id:           (p.profile_id ?? '') as string,
+              nombre:               (p.nombre ?? '') as string,
+              apellidos:            (p.apellidos ?? '') as string,
+              email:                (p.email ?? '') as string,
               telefono:             p.telefono,
               foto_url:             p.foto_url,
-              activo:               asignacionMap.get(p.id) ?? false,
-              diagnosticoActivo:    diagnosticoMap.get(p.id) ?? null,
+              activo:               asignacionMap.get(pid) ?? false,
+              diagnosticoActivo:    diagnosticoMap.get(pid) ?? null,
               proximaCita:          proxima?.fecha_hora ?? null,
               estadoProximaCita:    proxima?.estado     ?? null,
             }
-          }
-        )
+          })
 
         // Ordenar: activos primero, luego por apellido
         result.sort((a, b) => {

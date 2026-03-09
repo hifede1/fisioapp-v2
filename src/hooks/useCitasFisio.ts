@@ -50,7 +50,7 @@ function aplicarFiltroFecha(citas: Views<'v_citas'>[], filtro: FiltroFecha): Vie
   const hoy    = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate())
 
   if (filtro === 'hoy') {
-    return citas.filter(c => esMismaFecha(new Date(c.fecha_hora), hoy))
+    return citas.filter(c => c.fecha_hora && esMismaFecha(new Date(c.fecha_hora), hoy))
   }
 
   if (filtro === 'semana') {
@@ -62,6 +62,7 @@ function aplicarFiltroFecha(citas: Views<'v_citas'>[], filtro: FiltroFecha): Vie
     domingo.setDate(lunes.getDate() + 6)
     domingo.setHours(23, 59, 59, 999)
     return citas.filter(c => {
+      if (!c.fecha_hora) return false
       const d = new Date(c.fecha_hora)
       return d >= lunes && d <= domingo
     })
@@ -71,6 +72,7 @@ function aplicarFiltroFecha(citas: Views<'v_citas'>[], filtro: FiltroFecha): Vie
     const inicioMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1)
     const finMes    = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0, 23, 59, 59, 999)
     return citas.filter(c => {
+      if (!c.fecha_hora) return false
       const d = new Date(c.fecha_hora)
       return d >= inicioMes && d <= finMes
     })

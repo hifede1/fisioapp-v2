@@ -70,11 +70,11 @@ function StatCard({ label, value, icon, iconBg, loading }: StatCardProps) {
 }
 
 function CitaRow({ cita }: { cita: Views<'v_citas'> }) {
-  const cfg = estadoConfig[cita.estado]
+  const cfg = estadoConfig[cita.estado as EstadoCita] ?? estadoConfig.pendiente
   return (
     <div className="flex items-center gap-4 py-3 border-b border-gray-100 last:border-0">
       <div className="text-center w-14 shrink-0">
-        <p className="text-sm font-semibold text-gray-900">{formatTime(cita.fecha_hora)}</p>
+        <p className="text-sm font-semibold text-gray-900">{formatTime(cita.fecha_hora ?? '')}</p>
         <p className="text-xs text-gray-400">{cita.duracion_minutos} min</p>
       </div>
       <div className="flex-1 min-w-0">
@@ -93,7 +93,7 @@ function CitaRow({ cita }: { cita: Views<'v_citas'> }) {
 }
 
 function ProximaCitaCard({ cita }: { cita: Views<'v_citas'> }) {
-  const cfg = estadoConfig[cita.estado]
+  const cfg = estadoConfig[cita.estado as EstadoCita] ?? estadoConfig.pendiente
   return (
     <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
       <div className="shrink-0 mt-0.5">
@@ -106,7 +106,7 @@ function ProximaCitaCard({ cita }: { cita: Views<'v_citas'> }) {
         <p className="text-sm font-medium text-gray-900 truncate">
           {cita.paciente_nombre} {cita.paciente_apellidos}
         </p>
-        <p className="text-xs text-gray-500 capitalize">{formatDateShort(cita.fecha_hora)} · {formatTime(cita.fecha_hora)}</p>
+        <p className="text-xs text-gray-500 capitalize">{formatDateShort(cita.fecha_hora ?? '')} · {formatTime(cita.fecha_hora ?? '')}</p>
       </div>
       <span className={`shrink-0 text-xs font-medium px-2 py-0.5 rounded-full ${cfg.classes}`}>
         {cfg.label}
